@@ -1,6 +1,0 @@
-[submodule "hw/PS1"]
-	path = hw/PS1
-	url = https://github.com/geometric3d/PS1.git
-[submodule "hw/assignment1"]
-	path = hw/assignment1
-	url = https://github.com/geometric3d/assignment1.git
