@@ -16,18 +16,31 @@ In this question, your goal is to compute `P` from 2D-3D point correspondences.
 ### (a) Stanford Bunny (15 points)
 We provide a picture of stanford bunny `data/q1/bunny.jpeg` and 2D-3D point correspondences in `data/q1/bunny.txt`. The text file contains multiple rows. Each row represents a pair of 2D-3D correspondences, where the first 2 numbers are the 2D coordinates on the image while the next 3 numbers are the corresponding 3D coordinates.
 
-  | Input Image  | Annotated 2D points |
-  | ----------- | ----------- | 
-  |  <img src="data/q1/bunny.jpeg" width="300">  | <img src="figures/q1/anno.jpg" width="300"> | 
+| Input Image  | Annotated 2D points |
+| ----------- | ----------- |
+|  <img src="data/q1/bunny.jpeg" width="300">  | <img src="figures/q1/anno.jpg" width="300"> |
 
 **Instructions**
-  1. Compute the camera matrix `P` using the provided 2D-3D correspondences.
-  2. We provide a set of 3D surface points in `data/q1/bunny_pts.npy`. Project these points to the image using your calculated `P`. See the example below.
-  3. We provide the 12 edges of the bounding box in `data/q1/bunny_bd.npy`. Each line contains 6 numbers, where every 3 numbers denote 1 point. Project these points to the image and draw the cuboid. See the example below.
 
-  | Surface Points  | Bounding Box |
-  | ----------- | ----------- | 
-  |  <img src="figures/q1/result.jpg" width="300">  | <img src="figures/q1/boundary.jpg" width="300"> | 
+  1. Compute the camera matrix `P` using the provided 2D-3D correspondences.
+
+     P computed:
+
+     [ 0.6124684  -0.28077186  0.10920244  0.21209089]
+
+      [-0.08901509 -0.64323957  0.19326692  0.17351926]
+
+      [ 5.51691224e-05 -1.35587519e-04 -7.00023937e-05  9.52253806e-05]
+
+     
+
+  2. We provide a set of 3D surface points in `data/q1/bunny_pts.npy`. Project these points to the image using your calculated `P`. See the example below.
+
+  3. We provide the 12 edges of the bounding box in `data/q1/bunny_bd.npy`. Each line contains 6 numbers, where every 3 numbers denote 1 point. Project these points to the image and draw the cuboid. 
+
+| Surface Points  | Bounding Box |
+| ----------- | ----------- |
+|  <img src="figures/q1.1.jpg" width="300">  | <img src="figures/q1.2.jpg" width="300"> |
 
 ### (b) Cuboid (15 points)
 **Instructions**
@@ -35,91 +48,121 @@ We provide a picture of stanford bunny `data/q1/bunny.jpeg` and 2D-3D point corr
   2. Compute the camera matrix `P` using your annotated 2D-3D correspondences.
   3. Draw the edges of the cuboid using your calculated `P` or do something fun!
 
-  | Input Image  | Annotated 2D points | Example Result |
-  | ----------- | ----------- | ----------- | 
-  |  <img src="figures/q1/cube.jpg" width="300">  | <img src="figures/q1/cube_anno.jpg" width="300"> |  <img src="figures/q1/cube_result.jpg" width="300">
+| Input Image  | Annotated 2D points | Result |
+| ----------- | ----------- | ----------- |
+|  ![](data/q1/cube.jpeg)  | ![](figures/q1b_anno.jpg) | ![](figures/q1.3.jpg) |
 
 ## Q2: Camera calibration `K` from annotations (40 points + 10 points bonus)
 ### (a) Camera calibration from vanishing points (20 points)
 In this question, your goal is to compute `K` from a triad of orthogonal vanishing points, assuming that the camera has zero skew, and that the pixels are square. 
 
 **Dataset**
+
   1. Run your code on `data/q2a.png`. Annotate 3 pairs of parallel lines that are orthogonal to each other.
 
 **Submission**
   1. Output plots of the vanishing points and the principal point. Also include visualizations of the annotations that you used. See the following figures:
-  
+
   | Input Image  | Annotated Parallel Lines | Vanishing points and principal point |
   | ----------- | ----------- | ----------- |
   |  <img src="data/q2a.png" width="300">  | <img src="figures/q2a_parallel_annotated.png" width="300"> | <img src="figures/q2a.png" width="300"> |
-    
+
   2. Report `K` for the input image.
+
+     [1154.17801827  0.     575.06600499]
+
+     [ -0.     1154.17801827 431.93909042]
+
+     [-0. 0. 1.]
+
   3. Brief description of your implementation (i.e., the algorithm followed with relevant equations).
-  
+
+     1. In the case of square pixels ω has the form 
+        $$
+        w =\begin{bmatrix}w_1 & 0 & w_2\\
+        0&  w_1 &w_3\\
+        w_2 & w_3 & w_4
+        \end{bmatrix}
+        $$
+
+     2. Each pair of vanishing points vi, vj generates an equation vTi ωvj = 0, which is linear in the elements of ω. The constraints from the three pairs of vanishing points are stacked together to form an equation Aw = 0, where A is a 3 × 4 matrix.
+     3. The vector w is obtained as the null vector of A, and this determines ω. The ma- trix K is obtained from ω = (KK^T)−1 by Cholesky factorization of ω, followed by inversion.
+
+  4. 
+
 ### (b) Camera calibration from metric planes  (20 points)
 In this question, your goal is to compute `K` from image of three squares. Different from (a), you will not make any additional assumption on `K` (except that it is a projective camera). 
 
 **Dataset**
+
   1. Run your code on `data/q2b.png`. Annotate 3 squares in the image.
 
 **Submission**
-  1. Visualizations of annotations that you used. See the following figure as an example:
-  
-  | Input Image  | Annotated Square 1 | Annotated Square 2 | Annotated Square 3 | 
-  | ----------- | ----------- | ----------- |  ----------- |
-  |  <img src="data/q2b.png" width="200">  | <img src="figures/q2b_square0.png" width="200"> |  <img src="figures/q2b_square1.png" width="200"> |  <img src="figures/q2b_square2.png" width="200"> |
-    
+  1. Visualizations of annotations that you used. 
+
+     I used provided annotations:
+
+     ![](figures/q2b_anno.png)
+
+|      |      |      |      |
+| ----------- | ----------- | ----------- |  ----------- |
+|      |      |      |      |
+
   2. Evaluate angles between each pair of planes. This will reflect the correctness of your calibration result.
-  
-  |       | Angle between planes(degree) |
-  | ----------- | ----------- |
-  | Plane 1 & Plane 2    | 67.40    |
-  | Plane 1 & Plane 3    | 92.22    |
-  | Plane 2 & Plane 3    | 94.70    |
-    
+
+|       | Angle between planes(degree) |
+| ----------- | ----------- |
+| Plane 1 & Plane 2    | 67.57512 |
+| Plane 1 & Plane 3    | 92.24721 |
+| Plane 2 & Plane 3    | 94.78379 |
+
   3. Report `K` for the input image.
+
+     K is:
+
+     [1084.4764, -13.5121, 520.0139]
+
+     [0, 1079.3542,  402.5434] 
+
+     [0.  0.  1.]
+
   4. Brief description of your implementation (i.e., the algorithm followed with relevant equations).
 
-### (c) Camera calibration from rectangles with known sizes  (10 points bonus)
-In part (b), you computed `K` from image of three squares (based on the algorithm described in the lectures). In this question, the goal is to modify this approach by relaxing the assumption of imaging squares, and instead computing `K` from image of three rectangles, each with known height-to-width ratios.
+     Taken from Hartley & Zisserman:
 
-**Dataset Preparation**
-  1. Find (or capture) `1` image of three rectangles, where the height:width ratios are known. Make sure that the three rectangles are not on the same plane.
+     1. For each square compute the homography H that maps its corner points, (0, 0)T, (1, 0)T, (0, 1)T, (1, 1)T, to their imaged points.
 
-**Submission**
-  1. Input image.
-  2. Visualizations of annotations that you used.
-  3. Evaluate angles between each pair of planes. This will reflect the correctness of your calibration result.
-  4. Report `K` for your input image.
-  5. Brief description of your implementation (i.e., the algorithm followed with relevant equations, and in particular emphasizing the differences compared to part b).
+     2. Compute the imaged circular points for the plane of that square as H(1, ±i, 0)T. Writing H = [h1, h2, h3], the imaged circular points are h1 ± ih2.
 
-  | Example Input Image  | Annotated Squares | 
-  | ----------- | ----------- | 
-  |  <img src="figures/q2c2.png" width="200">  | <img src="figures/anno.jpg" width="200"> |  
-    
-  
-  |       | Angle between planes(degree) |
-  | ----------- | ----------- |
-  | Plane 1 & Plane 2    | 62.99    |
-  | Plane 1 & Plane 3    | 84.11   |
-  | Plane 2 & Plane 3    | 86.88    |
+     3. Fit a conic ω to the six imaged circular points. The constraint that the imaged circular points lie on ω may be rewritten as two real constraints. If h1 ± ih2 lies on ω then (h1 ± ih2)T ω (h1 ± ih2) = 0, and the imaginary and real parts give respectively:
+
+        hT1 ωh2 = 0 and hT1 ωh1 = hT2 ωh2
+
+        which are equations linear in ω. The conic ω is determined up to scale from five or more such equations.
+
+     4. Compute the calibration K from ω = (KKT)−1 using the Cholesky factorization.
 
 
 ## Q3: Single View Reconstruction (30 points + 10 points bonus)
 In this question, your goal is to reconstruct a colored point cloud from a single image.
 
 ### (a) (30 points)
-**Dataset**
-  1. Run your code on `data/q3.png`. You may assume zero skew and square pixels for `data/q3.png`.
-  
 **Submissions**
+
   1. Output reconstruction from at least two different views. Also include visualizations of annotations that you used. See the following figure as an example:
-  
-  | Input Image  | Annotations | Reconstruction View 1 | Reconstruction View 2 | 
-  | ----------- | ----------- | ----------- |  ----------- |
-  |  <img src="data/q3.png" width="200">  | <img src="figures/q3_annotations.png" width="200"> |  <img src="figures/q3_view.png" width="200"> |  <img src="figures/q3_view2.png" width="200"> |
-  
-  2. Brief description of your implementation (i.e., the algorithm followed with relevant equations).
+
+| Input Image  | Annotations | Reconstruction View 1 | Reconstruction View 2 | Reconstruction View 3 |
+| ----------- | ----------- | ----------- |  ----------- | ----------- |
+|  <img src="data/q3.png" width="200">  | <img src="figures/q3_annotations.png" width="200"> | ![](figures/q3_res1.png) | ![](figures/q3_res2.png) | ![](figures/q3_res3.png) |
+
+    2. Brief description of your implementation (i.e., the algorithm followed with relevant equations).
+       1. Use 3 vanishing points to compute K
+       2. Choose one reference point, here I used point #1
+       3. In camera coordinate, unproject reference point in the image X=K^-1x, and set its depth (scale) in 3D
+       4. Compute the plane's normal vector and find a = -n^TX_r
+       5. Get rest of the image coordinates in the plane, unproject them to 3D using K
+       6. Compute scale for each point such that those points are in the same plane
+       7. Repeat the above steps and obtain the equations for all planes
 
 **Hints**
 
@@ -127,31 +170,16 @@ In this question, your goal is to reconstruct a colored point cloud from a singl
 
 2. Consider following these steps for your implementation:
     1. Use Q2a to compute `K`.
+    
     2. Annotate plane boundaries with corner points.
+    
     3. Compute plane normals.
+    
     4. Compute rays for each point. Pick one point as reference and set its depth. 
+    
     5. Compute plane equation given the known 3D point.
+    
     6. Compute 3D coordinate of all points on the plane via ray-plane intersection.
+    
     7. Repeat the above two steps to obtain equations for all planes (and all 3D points).
 
-  
-### (b) (10 points bonus)
-For this part, you will run your implementation in part (a) on `3` more images. For each image, submit a gif of the reconstructed 3d structure from different views.
-
-**Submissions**
-  1. Input images.
-  2. For each input image, include a gif to visualize the reconstruction at different views.
-
-| Example Input Image  | Output | 
-  | ----------- | ----------- | 
-  |  <img src="figures/q3b.png" width="200">  | <img src="figures/q3b_vid.gif" width="200"> |  
-    
-
-
-## What you can *not* do
-* Download any code.
-* Use any predefined routines except linear algebra functions, image interpolation, and image warping.
-  
-## Tips
-* It is a good idea to `assert` with sanity checks regularly during debugging.
-* **Start Early and Have Fun!**
