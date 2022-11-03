@@ -154,7 +154,7 @@ def decompose(P):
 # %%
 def skew(x):
     assert len(x) == 3
-    res = np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
+    res = np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]], dtype=float)
     return res
 
 
@@ -232,7 +232,7 @@ Q5.3: Rodrigues residual.
 """
 
 
-def rodriguesResidual(p1, p2, x):
+def rodriguesResidual(p1, p2, x, C1):
 
     n = p1.shape[0]
     P = np.hstack((x[0:n, None], x[n : 2 * n, None], x[2 * n : 3 * n, None]))
@@ -266,7 +266,7 @@ def rodriguesResidual(p1, p2, x):
     K2[1, 2] = k2[4]
     K2[2, 2] = 1
 
-    C1 = K1.dot(M1)
+    # C1 = K1.dot(M1)
     C2 = K2.dot(M2)
 
     P_homo = np.vstack([P.T, np.ones(n)])
@@ -289,8 +289,10 @@ def rodriguesResidual(p1, p2, x):
     residuals = np.concatenate(
         [(p1 - p1_hat).reshape([-1]), (p2 - p2_hat).reshape([-1])]
     )
-    residuals = np.expand_dims(residuals, 1)
-    # print('residuals shape: ', residuals.shape, ', n:', n)
+    # residuals = np.hstack((p1 - p1_hat, p2 - p2_hat))
+
+    # residuals = np.expand_dims(residuals, 1)
+    # print("residuals shape: ", residuals.shape, ", n:", n)
     return residuals
 
 
@@ -308,7 +310,7 @@ Q5.3 Bundle adjustment.
 """
 
 
-def bundleAdjustment(K1_init, M1_init, p1, K2_init, M2_init, p2, P_init):
+def bundleAdjustment(K1_init, M1_init, p1, K2_init, M2_init, p2, P_init, C1):
     # Replace pass by your implementation
 
     R1_init = M1_init[:, 0:3]
@@ -338,13 +340,17 @@ def bundleAdjustment(K1_init, M1_init, p1, K2_init, M2_init, p2, P_init):
             t2_init,
         ]
     )
-    print(x_init.shape)
-    print(P_init.shape)
+    # print(x_init.shape)
+    # print(P_init.shape)
 
-    func = lambda x: (rodriguesResidual(p1, p2, x) ** 2).sum()
-    x_updated = scipy.optimize.minimize(
-        func, x_init, options={"disp": True, "maxiter": 50}
-    ).x
+    func = lambda x: rodriguesResidual(p1, p2, x, C1)
+
+    # x_updated = scipy.optimize.minimize(
+    #     func, x_init, options={"disp": True, "maxiter": 50}
+    # ).x
+
+    x_updated = scipy.optimize.least_squares(func, x_init, method="lm", max_nfev=100).x
+    # x_updated = scipy.optimize.least_squares(func, x_init, verbose=2, max_nfev=100).x
 
     # r1 = x_updated[-12:-9]
     # t1 = x_updated[-9:-6, np.newaxis]
@@ -391,7 +397,7 @@ M2 = np.hstack((R2, (-R2 @ C2.T).reshape(3, 1)))
 P_init, err = triangulate(P1, pts1, P2, pts2)
 
 # %%
-P = bundleAdjustment(K1, M1, pts1, K2, M2, pts2, P_init)
+P = bundleAdjustment(K1, M1, pts1, K2, M2, pts2, P_init, P1)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection="3d")

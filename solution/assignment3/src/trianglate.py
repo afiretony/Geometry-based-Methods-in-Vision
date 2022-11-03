@@ -7,7 +7,7 @@ import matplotlib
 
 def triangulate(C1, pts1, C2, pts2):
     """
-    Q3.2: Triangulate a set of 2D coordinates in the image to a set of 3D points.
+    Triangulate a set of 2D coordinates in the image to a set of 3D points.
         Input:  C1, the 3x4 camera matrix
                 pts1, the Nx2 matrix with the 2D image coordinates per row
                 C2, the 3x4 camera matrix
@@ -83,21 +83,18 @@ def plot_3D(P, c):
     ax.set_zlim(-0.6, 0.6)
     plt.show()
 
-    # while True:
-    #     x, y = plt.ginput(1, mouse_stop=2)[0]
-    #     plt.draw()
 
+if __name__ == "__main__":
 
-# %%
-# C1 = np.load("../data/q3/P1.npy")
-# C2 = np.load("../data/q3/P2.npy")
-# pts1 = np.load("../data/q3/pts1.npy")
-# pts2 = np.load("../data/q3/pts2.npy")
-# im1 = plt.imread("../data/q3/img1.jpg")
+    C1 = np.load("../data/q3/P1.npy")
+    C2 = np.load("../data/q3/P2.npy")
+    pts1 = np.load("../data/q3/pts1.npy")
+    pts2 = np.load("../data/q3/pts2.npy")
+    im1 = plt.imread("../data/q3/img1.jpg")
 
-# w, err = triangulate(C1, pts1, C2, pts2)
+    w, err = triangulate(C1, pts1, C2, pts2)
 
-# color = im1[pts1[:, 1], pts1[:, 0], :] / 255.0
-# plot_3D(w, color)
+    color = im1[pts1[:, 1], pts1[:, 0], :] / 255.0
+    plot_3D(w, color)
 
 # %%

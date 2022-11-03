@@ -1,10 +1,5 @@
 # HW3: 3D reconstruction
 
-## Instructions
-* Late Submission Policy: See the late submission policy [here](https://geometric3d.github.io/pages/assignments/hw0.html).
-* Submitting your work: Check the instructions for submission [here](https://geometric3d.github.io/pages/assignments/hw0.html).
-* There are `5` questions in this assignment, where the last two are bonus questions. Make sure you follow the instructions and submit the answers as required.
-
 ## Overview
 
 In this assignment you will begin by implementing the methods to estimate the fundamental matrix from corresponding points in two images. Next, given the fundamental matrix and calibrated intrinsics (which will be provided) you will compute the essential matrix. Next, you will implement RANSAC to improve your algorithm and use this to compute a 3D metric reconstruction from 2D correspondences using triangulation. 
@@ -23,12 +18,27 @@ We provide 2 sets of two-view images along with the corresponding points in the 
  * Run your code on the 2 sets of `2` images provided in the `data/q1a` folder for this question.
 
 **Submission** 
+
  * Brief explanation of your implementation.
+
+   * **Linear solution** A solution F is obtained from the vector f corresponding to the smallest singular value of A. Where A is defined as
+     $$
+     Af = 
+     \begin{bmatrix}
+     x_1'x_1 & x_1'y_1 & x_1' & y_1'x_1 & y_1'y_1 & y_1' & x_1 & y_1 & 1\\
+     \vdots &\vdots &\vdots &\vdots &\vdots &\vdots &\vdots &\vdots &\vdots \\
+     x_n'x_n & x_n'y_n & x_n' & y_n'x_n & y_n'y_n & y_n' & x_n & y_n & 1\\
+     \end{bmatrix}
+     $$
+
+   * **Constraint enforcement** Replace F by F', the closest singular matrix to F under a Frobenius norm. This correction is done using the SVD.
+
  * Epipolar lines: Show lines from fundamental matrix over the two images. See the following example figure:
 
-| F-matrix visualizations |
-| -----------  |
-| <img src="figs/epipolar_line_correspondences.jpg" width="700"> |
+| F-matrix visualizations |  |
+| -----------  | -----------  |
+| ![](figs/eight_point/teddy_1.jpg) | ![](figs/eight_point/teddy_2.jpg) |
+| ![](figs/eight_point/chair_1.jpg) | ![](figs/eight_point/chair_2.jpg) |
 
 
 ### (A2) E matrix using 8-point algorithm (5 points)
@@ -36,8 +46,24 @@ We provide 2 sets of two-view images along with the corresponding points in the 
 Given the estimated fundamental matrix `F` (from above) and intrinsic matrices `K1` and `K2` (that we provide as `intrinsic_matrices_$object.npz`), you need to compute the essential matrix `E`.
 
 **Submission** 
+
  * Brief explanation of your implementation.
+
+   * E can be computed with 
+     $$
+     E = K^{\prime T} F K
+     $$
+     
+
  * Provide your estimated `E`.
+
+   [[ 0.39839072,  3.96651768, -0.53939499],
+
+   [-4.08818061,  0.47782966,  2.05394271],
+
+   [ 0.21233717, -2.38218264,  0.09259576]])
+
+   
 
 
 ### (B) 7-point algorithm (20 points)
@@ -61,8 +87,20 @@ There are probably multiple solutions from the 7-point algorithm. You need to ch
 
 
 **Submission** 
- * Brief explanation of your implementation.
+ * Brief explanation of your implementation
+
+   * Using 7 annotated/automatic correspondences, find f such that Af=0
+   * Two linearly independent solutions f1 f2 - last two singular vectors of A
+   * find $\lambda$ s.t.  $det(\lambda F_1+(1-\lambda) F_2 = 0)$
+   * (test all for inliers if multiple real solutions)
+
  * Epipolar lines: Similar to the above, you need to show lines from fundamental matrix over the two images.
+
+   | ![](figs/seven_point/toybus_1.jpg)   | ![](figs/seven_point/toybus_2.jpg)   |
+   | ------------------------------------ | ------------------------------------ |
+   | ![](figs/seven_point/toytrain_1.jpg) | ![](figs/seven_point/toytrain_2.jpg) |
+
+   
 
 
 ## Q2: RANSAC with 7-point and 8-point algorithm (30 points)
@@ -77,13 +115,36 @@ In this question, you will use the image sets released in `q1a` and `q1b` and ca
 - There are around 50-60% of inliers in the provided data.
 - Pick the number of iterations and tolerance of error carefully to get reasonable `F`.
 
-
 **Submission** 
+
  * Brief explanation of your RANSAC implementation and criteria for considering inliers.
+
+   * Criteria: sum of distance of pts2 from l2 less than 2
+   * randomly sample 7/8 correspondences for computing F
+   * reproject pts2 using F and find distance between l2, compute ratio of inliner with threshold
+   * update F if ratio is higher, otherwise pass
+
  * Report your best solution and plot the epipolar lines -- show lines from fundamental matrix that you calculate over the inliers.
+
+   * $$
+     F = \begin{bmatrix}
+     1.64938352e-07& -1.11490218e-07 & 7.91414741e-04 \\
+     -3.76433141e-07& -2.01839009e-07 &-3.57281514e-03 \\
+     -0.00189703  &0.00389162 & 1.        \\
+     \end{bmatrix}
+     $$
+
+   - | ![](figs/ransac/teddy_1.jpg)   | ![](figs/ransac/teddy_2.jpg)   |
+     | ------------------------------ | ------------------------------ |
+     | ![](figs/ransac8/toybus_1.jpg) | ![](figs/ransac8/toybus_2.jpg) |
+   
  * Visualization (graph plot) of % of inliers vs. # of RANSAC iterations (see the example below). You should report such plots for both, the 7-pt and 8-pt Algorithms in the inner loop of RANSAC.
 
- <img src="figs/inlier_ratio.png" width="300"> 
+   ![](figs/ransac7/test_ransac7.jpg)
+
+   ![](figs/ransac8/test_ransac8.jpg)
+
+   
 
 
 ## Q3: Triangulation (30 points)
@@ -99,9 +160,19 @@ Given 2D correspondences and 2 camera matrices, your goal is to triangulate the 
 
 **Submission**
 - Brief explanation of your implementation.
+
+  - Use linear triangulation, as descripted in Hartley 12.2 P312
+
+    ![](figs/triangulation.png)
+
+    
+
 - A colored point cloud as below:
 
-<img src="figs/result.png" width="300"> 
+  | ![](figs/triangulation/cow.png) | ![](figs/triangulation/cow2.png) | ![](figs/triangulation/cow3.png) |
+  | ------------------------------- | -------------------------------- | -------------------------------- |
+
+  
 
 ## Q4: Bonus 1 - Bundle Adjustment (10 points)
 
@@ -118,51 +189,64 @@ First triangulate the 3D points, then use `scipy.optimize.least_squares` to opti
 
 **Submission**
 - Brief explanation of your implementation.
+
+    - Define 
+
+    - Formulate residual function and return a flattened Nx4 vector $[(x1'-x1), (y1'-y1), (x2'-x2), (y2'-y2)] $ 
+
+    - use `scipy.optimize.least_square` to minimize the cost function
+
+    - I also did some ablation study, both Levenberg-Marquardt algorithm and Trust Region Reflective algorithm gave good results and able to converge to solution less than 3 minutes.
+
+        
+
 - A colored point cloud before and after bundle adjustment:
 
-    2D Correspondences | Before Bundle Adjustment  | After Bundle Adjustment |
+    |2D Correspondences | Before Bundle Adjustment  | After Bundle Adjustment |
     | -----------  | ----------| ---------- |
-    |<img src="figs/q4corresp.png" width="400">  | <img src="figs/noisy2.png" width="300"> | <img src="figs/bundle_adjustment2.png" width="300"> 
+    |<img src="figs/q4corresp.png" width="400">  | <img src="figs/noisy2.png" width="300"> | <img src="figs/bundle/res1.png" style="zoom:30%;" /> |
+
+Trust Region Reflective algorithm
+
+![](figs/bundle/log.png)
+
+Levenberg-Marquardt algorithm
+
+```
+Function evaluations 13256, initial cost 2.1507e+05, final cost 7.5326e+00, first-order optimality 7.54e-04.
+```
+
+
 
 ## Q5: Bonus 2 - Fundamental matrix estimation on your own images. (10 points)
 
-Capture / find at least 2 pairs of images, estimate the fundamental matrix.
+Input: 2 views from CMU CERLAB UAV:
 
-**Hint**
-- Use SIFT feature extractor (See the example code below), and compute potential matches.
+| ![](data/q4/drone1.png) | ![](data/q4/drone2.png) |
+| ----------------------- | ----------------------- |
+|                         |                         |
+
+```python
+# find the keypoints and descriptors with SIFT
+sift = cv.SIFT_create()
+kp1, des1 = sift.detectAndCompute(img1, None)
+kp2, des2 = sift.detectAndCompute(img2, None)
+
+# use FLANN based matcher and ratio test to get correspondances
+FLANN_INDEX_KDTREE = 1
+index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+search_params = dict(checks=50)
+flann = cv.FlannBasedMatcher(index_params, search_params)
+matches = flann.knnMatch(des1, des2, k=2)
+pts1 = []
+pts2 = []
+# ratio test as per Lowe's paper
+for i, (m, n) in enumerate(matches):
+    if m.distance < 0.8 * n.distance:
+        pts2.append(kp2[m.trainIdx].pt)
+        pts1.append(kp1[m.queryIdx].pt)
 ```
-import cv2
- 
-# Loading the image
-img = cv2.imread('../data/q1/chair/image_1.jpg')
- 
- # Converting image to grayscale
-gray= cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
- 
-# Applying SIFT detector
-sift = cv2.xfeatures2d.SIFT_create()
 
-kp, des = sift.detectAndCompute(gray, None)
+### Result:
 
-# Compute possible matches in any way you can think of.
-```
-- Use RANSAC with 7-point or 8-point algorithm to get `F`.
-- Show the epipolar lines from the estimated `F`.
-
-**Submission**
-- Brief explanation of your implementation.
-- Epipolar lines.
-
-
-
-## What you can *not* do
-* Download any code.
-* Use any predefined routines except linear algebra functions.
-  
-## Tips
-* It is a good idea to `assert` with sanity checks regularly during debugging.
-* Normalize point and line coordinates.
-* Remember that transformations are estimated up to scale, and that you are dealing with Projective Geometry.
-* You *may not* use predefined routine to directly compute homography (e.g. `cv2.findHomography`). However, you *may* use predefined linear algebra/image interpolation libraries (e.g. `np.linalg`, `cv2.warpPerspective`). If you are unsure about what may or may not be used, don't hesitate to ask on Piazza.
-
-* **Start Early and Have Fun!**
+![](figs/epipolarline.png)

@@ -1,10 +1,10 @@
 # %%
 import os
 import numpy as np
-import sympy as sp
 import matplotlib.pyplot as plt
 from utils import _singularize, refineF, load_pairs, load_intrainsics
 import tqdm
+import argparse
 
 
 def eightpoint(pts1, pts2, M):
@@ -43,9 +43,9 @@ def sevenpoint(pts1, pts2, M):
     x1, y1 = pts1[:, 0], pts1[:, 1]
     x2, y2 = pts2[:, 0], pts2[:, 1]
     x1, y1, x2, y2 = x1 / M, y1 / M, x2 / M, y2 / M
+
     # normalization matrix
     T = np.array([[1.0 / M, 0, 0], [0, 1.0 / M, 0], [0, 0, 1]])
-
     A = np.transpose(
         np.vstack(
             (x2 * x1, x2 * y1, x2, y2 * x1, y2 * y1, y2, x1, y1, np.ones(x1.shape))
@@ -60,15 +60,18 @@ def sevenpoint(pts1, pts2, M):
     F2 = np.reshape(f2, (3, 3))
 
     fun = lambda alpha: np.linalg.det(alpha * F1 + (1 - alpha) * F2)
+
     # get the coefficients of the polynomial
     a0 = fun(0)
     a1 = 2 * (fun(1) - fun(-1)) / 3 - (fun(2) - fun(-2)) / 12
     a2 = (fun(1) + fun(-1)) / 2 - a0
     a3 = (fun(1) - fun(-1)) / 2 - a1
+
     # solve for alpha
     alpha = np.roots([a3, a2, a1, a0])
 
     Farray = [a * F1 + (1 - a) * F2 for a in alpha]
+
     # refine F
     # Farray = [refineF(F, pts1 / M, pts2 / M) for F in Farray]
 
@@ -76,67 +79,6 @@ def sevenpoint(pts1, pts2, M):
     Farray = [np.dot(np.transpose(T), np.dot(F, T)) for F in Farray]
     Farray = [F / F[-1, -1] for F in Farray]
     return Farray
-
-
-def eight_point_F(pts1, pts2, M):
-    """
-    estimate fundamental matrix F using 8 point algorithm
-    """
-
-    F = np.zeros((3, 3))
-    N = pts1.shape[0]
-    A = np.zeros((N, 9))
-
-    # linear equation formulation
-    for i in range(N):
-        x, xp, y, yp = pts1[i, 0], pts2[i, 0], pts1[i, 1], pts2[i, 1]
-        A[i] = np.array(([x * xp, xp * y, xp, yp * x, y * yp, yp, x, y, 1]))
-
-    u, s, vh = np.linalg.svd(A)
-    F = vh[-1, :].reshape(3, 3)
-
-    # constraint enforcement
-    u, s, vh = np.linalg.svd(F)
-    s[2] = 0
-    D = np.diag(s)
-    F_ = u @ D @ vh
-
-    return F_ / F_[-1, -1]
-
-
-def seven_point_F(pts1, pts2):
-    """
-    seven point algorithm to compute F
-    """
-
-    A = np.zeros((7, 9))
-    F = np.zeros((3, 3))
-    Fs = []
-
-    for i in range(7):
-        x, xp, y, yp = pts1[i, 0], pts2[i, 0], pts1[i, 1], pts2[i, 1]
-        A[i] = np.array(([x * xp, xp * y, xp, yp * x, y * yp, yp, x, y, 1]))
-
-    u, s, vh = np.linalg.svd(A)
-    F1 = vh[-1, :].reshape(3, 3)
-    F2 = vh[-2, :].reshape(3, 3)
-
-    lamb = sp.symbols("lamb")
-    M = sp.Matrix((F1 * lamb - F2 * (1 - lamb)))
-    det_M = sp.det(M)
-
-    M_coeff = det_M.as_coefficients_dict()
-    roots = np.roots(
-        [M_coeff[lamb**3], M_coeff[lamb**2], M_coeff[lamb], M_coeff[1]]
-    )
-    real_roots = roots.real[abs(roots.imag) < 1e-5]
-
-    for lamb in real_roots:
-        F = lamb * F1 + (1 - lamb) * F2
-        F = F / F[-1, -1]
-        Fs.append(F)
-
-    return Fs
 
 
 def compute_epipolar_line(pts1, pts2, F):
@@ -221,7 +163,7 @@ def ransacF_7(pts1, pts2, M, iter, thresh):
         # print(deviate.shape)
 
     ratio = max_inliers / N
-    print(ratio)
+    print("inliner ratio:", ratio)
 
     return F, ratio
 
@@ -260,72 +202,117 @@ def ransacF_8(pts1, pts2, M, iter, thresh):
     # print(deviate.shape)
 
     ratio = max_inliers / N
-    print(ratio)
+    print("inliner ratio:", ratio)
 
     return F, ratio
 
 
-# %%
-scene = "teddy"
-algo = "eight_point"
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="SfM", description="Estimates fundamental matrix"
+    )
+    parser.add_argument("--scene", "-s", default="chair")
+    parser.add_argument("--algorithm", "-a", default="eight_point")
+    parser.add_argument(
+        "--iter", "-i", type=int, default=10000, help="iteration for RANSAC"
+    )
+    parser.add_argument(
+        "--threshold", "-t", type=float, default=1.5, help="threshold for RANSAC"
+    )
 
-path = os.path.join("..", "data", "q1a", scene, "{}_corresp_raw.npz".format(scene))
-im1_path = os.path.join("..", "data", "q1a", scene, "image_1.jpg")
-im2_path = os.path.join("..", "data", "q1a", scene, "image_2.jpg")
-im1 = plt.imread(im1_path)
+    parser.add_argument("--draw", action="store_true")
+    parser.add_argument("--test_ransac7", action="store_true")
+    parser.add_argument("--test_ransac8", action="store_true")
 
-pts1, pts2 = load_pairs(path)
-M = max(im1.shape)
-# F = eightpoint(pts1, pts2, M)
-F, ratio = ransacF_8(pts1, pts2, M, 10000, 1.5)
-l, lp = compute_epipolar_line(pts1, pts2, F)
-draw_epipolar_line(scene, algo, im1_path, im2_path, l, lp, pts1, pts2, 8)
+    args = parser.parse_args()
+    np.random.seed(0)
 
-path = os.path.join(
-    "..", "data", "q1a", scene, "intrinsic_matrices_{}.npz".format(scene)
-)
-K, Kp = load_intrainsics(path)
-E = compute_E(Kp, K, F)
+    assert args.algorithm in ("eight_point, seven_point, ransac7, ransac8")
 
+    if args.scene == "chair" or args.scene == "teddy":
+        scene = args.scene
+        dir = "q1a"
+    elif args.scene == "toybus" or args.scene == "toytrain":
+        scene = args.scene
+        dir = "q1b"
+    else:
+        raise ValueError("no such scene")
 
-# %%
-scene = "teddy"
-path = os.path.join("..", "data", "q1b", scene, "{}_7_point_corresp.npz".format(scene))
-path = os.path.join("..", "data", "q1b", scene, "{}_corresp_raw.npz".format(scene))
-im1_path = os.path.join("..", "data", "q1b", scene, "image_1.jpg")
-im2_path = os.path.join("..", "data", "q1b", scene, "image_2.jpg")
+    algo = args.algorithm
+    path = os.path.join("..", "data", dir, scene, "{}_corresp_raw.npz".format(scene))
+    im1_path = os.path.join("..", "data", dir, scene, "image_1.jpg")
+    im2_path = os.path.join("..", "data", dir, scene, "image_2.jpg")
 
-pts1, pts2 = load_pairs(path)
+    im1 = plt.imread(im1_path)
 
-im1 = plt.imread(im1_path)
-M = max(im1.shape)
+    pts1, pts2 = load_pairs(path)
+    M = max(im1.shape)
 
-Farray = sevenpoint(pts1, pts2, M)
+    if algo == "eight_point":
+        F = eightpoint(pts1, pts2, M)
 
-l, lp = compute_epipolar_line(pts1, pts2, Farray[0])
+    elif algo == "seven_point":
+        Farray = sevenpoint(pts1, pts2, M)
+        F = Farray[2]
 
-draw_epipolar_line(scene, im1_path, im2_path, l, lp, pts1, pts2, 7)
+    elif algo == "ransac7":
+        F, ratio = ransacF_7(pts1, pts2, M, args.iter, args.threshold)
+
+    elif algo == "ransac8":
+        F, ratio = ransacF_8(pts1, pts2, M, args.iter, args.threshold)
+
+    if args.draw:
+        l, lp = compute_epipolar_line(pts1, pts2, F)
+        draw_epipolar_line(scene, algo, im1_path, im2_path, l, lp, pts1, pts2, 8)
+
+    K, Kp = load_intrainsics(
+        os.path.join(
+            "..", "data", dir, scene, "intrinsic_matrices_{}.npz".format(scene)
+        )
+    )
+    E = compute_E(Kp, K, F)
+    if args.test_ransac7:
+        iters = np.linspace(1, 10000, 20)
+        ratios = []
+        for iter in iters:
+            np.random.seed(0)
+            F, ratio = ransacF_7(pts1, pts2, M, int(iter), args.threshold)
+            ratios.append(ratio)
+        plt.figure(0)
+        plt.plot(iters, ratios, "-")
+        plt.xlabel("iter")
+        plt.ylabel("inlier raito")
+        plt.title("RANSAC SEVEN POINT")
+        plt.savefig(os.path.join("..", "figs", algo, "test_ransac7.jpg"))
+
+    if args.test_ransac8:
+        iters = np.linspace(1, 10000, 20)
+        ratios = []
+        for iter in iters:
+            np.random.seed(0)
+            F, ratio = ransacF_8(pts1, pts2, M, int(iter), args.threshold)
+            ratios.append(ratio)
+        plt.figure(0)
+        plt.plot(iters, ratios, "-")
+        plt.xlabel("iter")
+        plt.ylabel("inlier raito")
+        plt.title("RANSAC EIGHT POINT")
+        plt.savefig(os.path.join("..", "figs", algo, "test_ransac8.jpg"))
 
 # %% Test RanSAC
-scene = "teddy"
-algo = "eight_point"
+# scene = "teddy"
+# algo = "eight_point"
 
-path = os.path.join("..", "data", "q1a", scene, "{}_corresp_raw.npz".format(scene))
-im1_path = os.path.join("..", "data", "q1a", scene, "image_1.jpg")
-im2_path = os.path.join("..", "data", "q1a", scene, "image_2.jpg")
-im1 = plt.imread(im1_path)
+# path = os.path.join("..", "data", "q1a", scene, "{}_corresp_raw.npz".format(scene))
+# im1_path = os.path.join("..", "data", "q1a", scene, "image_1.jpg")
+# im2_path = os.path.join("..", "data", "q1a", scene, "image_2.jpg")
+# im1 = plt.imread(im1_path)
 
-pts1, pts2 = load_pairs(path)
-M = max(im1.shape)
+# pts1, pts2 = load_pairs(path)
+# M = max(im1.shape)
 
-iters = np.linspace(1, 10000, 10)
-ratios = []
-for iter in iters:
-    F, ratio = ransacF_7(pts1, pts2, M, int(iter), 1.2)
-    ratios.append(ratio)
-
-# %%
-ratios
-# %%
-plt.plot(iters, ratios)
-# %%
+# iters = np.linspace(1, 10000, 10)
+# ratios = []
+# for iter in iters:
+#     F, ratio = ransacF_7(pts1, pts2, M, int(iter), 1.2)
+#     ratios.append(ratio)
