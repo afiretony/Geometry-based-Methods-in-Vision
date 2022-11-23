@@ -1,9 +1,5 @@
 # HW4: Structure from Motion
 
-## Instructions
-* Late Submission Policy: See the late submission policy [here](https://geometric3d.github.io/pages/assignments/hw0.html).
-* Submitting your work: Check the instructions for submission [here](https://geometric3d.github.io/pages/assignments/hw0.html).
-
 ## Overview
 
 You will implement an entire incremental Structure-from-Motion (SfM) pipeline in this assignment. You will start by implementing an initialization technique for your incremental SfM. Next, given known intrinsics and extrinsics you will implement the incremental SfM over the given 4 images. Finally, utilizing the off-the-shelf tools such as COLMAP on your own sequences and generate the reconstructions.
@@ -46,7 +42,6 @@ Your goal in this question is to implement initialization for incremental SfM, i
     \end{pmatrix}
     $$
     
-
 - Brief description of your implementation (i.e., the algorithm followed with relevant equations).
 
     - compute fundamental matrix using RANSAC and 8 point algorithm, and filter out outliers
@@ -127,35 +122,78 @@ For this part, you will run an off-the-shelf incremental SfM toolbox such as [CO
 For this reconstruction, you can choose your own data. This data could either be a sequence having rigid objects, any object (for e.g. a mug or a vase in your vicinity), or any scene you wish to reconstruct in 3D.
 
 **Submissions**
--  Multi-view input images.
--  A gif to visualize the reconstruction of the scene and location of cameras (extrinsics).
--  Run this on at least 2 sequences / objects / scenes
+-  Scene: graffiti
 
-  | Example Multi-view images  | Output | 
-  | ----------- | ----------- | 
-  |  <img src="figures/multi-sacre-cour.jpg" width="400">  | <img src="figures/monument_reconstruction.gif" width="400"> |  
+   -  inputs and dense reconstruction
+
+   | Example Multi-view images  | Output |
+   | ----------- | ----------- |
+   |  ![](fig/preview1.png)  | ![](fig/sparse1.gif) |
+
+   - Dense reconstruction
+
+     ![](fig/dense1.gif)
+
+-  Scene: ETH3D courtyard
+
+   -  Inputs and sparse reconstruction
+
+      | Example Multi-view images                        | Output               |
+      | ------------------------------------------------ | -------------------- |
+      | <img src="fig/preview2.png" style="zoom:25%;" /> | ![](fig/sparse2.gif) |
+
+   -  Dense reconstruction
+
+      ![](fig/dense2.gif)
+
+      
+
 
 ### (B) Stress test the hyperparameters of COLMAP (20 points)
 For this part, we want you to `stress test` or play with hyper-parameters in the COLMAP system. We want you to pick `2` interesting questions concerning this toolbox and for each of the question, we want you to provide a brief explanation with supporting qualitative or quantitative evidence. Some example question suggestions are:
 
--  What happens if we reduce number of input images?
--  Under what scenario and conditions does the reconstruction pipeline breaks?
--  What happens if we play with some tolerance parameters?
+- What happens if we reduce number of input images?
 
-Above mentioned are just suggestions for you to play around the toolbox. Feel free to try anything you think could be interesting, and report back the findings.
+  For scene ETH3D courtyard, we tried reduce image **from 27 to 12**, the dense and sparse reconstruction results are as follows:
 
+  | Sparse               | Dense               |
+  | -------------------- | ------------------- |
+  | ![](fig/sparse3.gif) | ![](fig/dense3.gif) |
 
-**Submissions**
--  `2` questions and supporting explanations.
+  The conclusion is that if the images are selected wisely, we can have similar results for sparsely and densely sampled images.
 
+  However, this benefit has a limit, as we kept reducing images, COLMAP ends up with reconstruction failure because no good initial pairs found.
 
-## What you can *not* do
-* Download any code.
-* Use any predefined routines except linear algebra functions, image interpolation, and image warping.
+  Specifically, COLMAP requires **three** repeated images for same scene as mentioned in its document.
+
   
-## Tips
-* As always, it is a good idea to `assert` with sanity checks regularly during debugging.
-* **Start Early and Have Fun!**
+
+- Under what scenario and conditions does the reconstruction pipeline breaks?
+
+  - the scene has poor feature
+
+  - not enough overlap scenes
+
+    
+
+- Speed up reconstruction by pre-defining camera intrinsics and extrinsics
+
+  - how? for scene1, we actually sampled the scene on a UAV that has odometry reading for each image, and also camera calibration parameters
+
+  - use [this script](https://github.com/colmap/colmap/blob/dev/scripts/python/database.py) provided by colmap to pre-define camera pose in colmap database
+
+  - Results
+
+    |                   | Without pose (sec) | with pose (sec) |
+    | ----------------- | ------------------ | --------------- |
+    | Time(sec)         | 351                | 136             |
+    | Mean distance (m) | 0.00972            | 0.0173          |
+    | std               | 0.0125             | 0.0157          |
+
+    *we computed mean distance and std using dense reconstructed PCD with ground truth scans of the tunnel.*
+
+
+
 
 
 
