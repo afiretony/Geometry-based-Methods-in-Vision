@@ -1,5 +1,6 @@
 """
 Baseline recontruction for SfM using two views.
+Chenhao Yang 2022.11.22
 """
 
 import numpy as np
@@ -7,25 +8,46 @@ from utils import *
 from tqdm import tqdm
 from visualize import *
 import cv2 as cv
+from triangulation import triangulate
 
 
 class Baseline:
-    def __init__(self, image1_path, image2_path, intrinsics_path, correspondences_path):
+    def __init__(
+        self,
+        im1,
+        im2,
+        K1,
+        K2,
+        pts1,
+        pts2,
+        R1=np.eye(3),
+        t1=np.zeros((3, 1)),
+        iter=1000,
+        thresh=4,
+    ):
+
+        """
+        inputs:
+            im1, im2, two images of the same scene
+            K1, K2, camera intrinsics
+            pts1, pts2, corresponding points in the two images
+        """
+
         # load the images and parameters
-        self.im1 = load_image(image1_path)
-        self.im2 = load_image(image2_path)
-        self.K1, self.K2 = load_intrinsics(intrinsics_path)
-        self.pts1, self.pts2 = load_correspondences(correspondences_path)
+        self.im1 = im1
+        self.im2 = im2
+        self.K1, self.K2 = K1, K2
+        self.pts1, self.pts2 = pts1, pts2
         self.X = None  # 3D points
 
-        # set image 1 at the origin
-        self.R1 = np.eye(3)
-        self.t1 = np.zeros((3, 1))
+        # set image 1 extrinsics
+        self.R1 = R1
+        self.t1 = t1
 
-        # set the parameters
+        # set the parameters for F estimation
         self.M = max(self.im1.shape)
-        self.thresh = 0.005 * self.M  # threshold for inliners
-        self.iter = 1000  # number of iterations
+        self.thresh = thresh  # threshold for inliners
+        self.iter = iter  # number of iterations
 
     def get_essential_matrix(self, F):
         """
@@ -33,6 +55,15 @@ class Baseline:
         """
         E = self.K2.T @ F @ self.K1
         return E
+
+    @staticmethod
+    def check_determinant(R):
+        """Validates using the determinant of the rotation matrix"""
+
+        if np.linalg.det(R) + 1.0 < 1e-9:
+            return False
+        else:
+            return True
 
     def get_pose_from_essential_matrix(self, E):
         """
@@ -55,10 +86,20 @@ class Baseline:
         R2 = u @ W_t @ vt
         t1 = u[:, -1].reshape((3, 1))
         t2 = -t1
-        Rs[0], ts[0] = R1, t1
-        Rs[1], ts[1] = R1, t2
-        Rs[2], ts[2] = R2, t1
-        Rs[3], ts[3] = R2, t2
+
+        if self.check_determinant(R1) == False:
+            u, w, vt = np.linalg.svd(-E)
+            R1 = u @ W @ vt
+            R2 = u @ W_t @ vt
+            t1 = u[:, -1].reshape((3, 1))
+            t2 = -t1
+
+        # from relative camera pose to absolute camera pose
+
+        Rs[0], ts[0] = R1 @ self.R1, R1 @ self.t1 + t1
+        Rs[1], ts[1] = R1 @ self.R1, R1 @ self.t1 + t2
+        Rs[2], ts[2] = R2 @ self.R1, R2 @ self.t1 + t1
+        Rs[3], ts[3] = R2 @ self.R1, R2 @ self.t1 + t2
 
         return Rs, ts
 
@@ -71,9 +112,8 @@ class Baseline:
     def get_pose(self):
         # get the fundamental matrix
         F, inliners = self.ransacF_8()
-        print("F:", F / F[2, 2])
-        F, mask = cv.findFundamentalMat(self.pts1, self.pts2, cv.FM_LMEDS)
-        print("F:", F / F[2, 2])
+        # F, mask = cv.findFundamentalMat(self.pts1, self.pts2, cv.FM_LMEDS)
+        # inliners = mask.ravel() == 1
 
         # remove the outliers
         self.pts1, self.pts2 = self.remove_outliers(inliners)
@@ -98,6 +138,9 @@ class Baseline:
             t = ts[i]
             # get the 3D points
             X, err = self.triangulate(R, t)
+            C1 = self.K1 @ np.hstack((self.R1, self.t1))
+            C2 = self.K2 @ np.hstack((R, t))
+            X, err = triangulate(C1, self.pts1, C2, self.pts2)
             print(err)
             # check if the points are in front of the camera
             if np.all(X[:, 2] > 0):
@@ -196,7 +239,9 @@ class Baseline:
         x1, y1 = self.pts1[:, 0], self.pts1[:, 1]
         x2, y2 = self.pts2[:, 0], self.pts2[:, 1]
         C1 = np.hstack((self.R1, self.t1))
+        C1 = self.K1 @ C1
         C2 = np.hstack((R2, t2))
+        C2 = self.K2 @ C2
 
         A1 = np.vstack(
             (
@@ -258,9 +303,17 @@ class Baseline:
 if __name__ == "__main__":
     image1_path = "../data/monument/im1.jpg"
     image2_path = "../data/monument/im2.jpg"
-    intrinsic_path = "../data/monument/intrinsics.npy"
+    intrinsics_path = "../data/monument/intrinsics.npy"
     correspondences_path = "../data/monument/some_corresp_noisy.npz"
-    baseline = Baseline(image1_path, image2_path, intrinsic_path, correspondences_path)
+    im1 = load_image(image1_path)
+    im1 = load_image(image1_path)
+    im2 = load_image(image2_path)
+    K1, K2 = load_intrinsics(intrinsics_path)
+    pts1, pts2 = load_correspondences(correspondences_path)
+
+    baseline = Baseline(im1, im2, K1, K2, pts1, pts2)
+    plot_correspondences(baseline.im1, baseline.im2, baseline.pts1, baseline.pts2)
+
     pose = baseline.get_pose()
-    print(pose)
+    # print(pose)
     plot_3D(baseline.X, "r")
